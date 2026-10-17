@@ -94,7 +94,7 @@ function getNextSequentialUserId(users: any[]): string {
   if (!users || !Array.isArray(users) || users.length === 0) return '1';
   const numericIds = users
     .map((u: any) => parseInt(u.id, 10))
-    .filter((n: number) => !isNaN(n) && n > 0);
+    .filter((n: number) => !isNaN(n) && n > 0 && n < 100000);
   if (numericIds.length === 0) return '1';
   return (Math.max(...numericIds) + 1).toString();
 }
@@ -370,34 +370,36 @@ async function startServer() {
       const { id, email, phrase, password, balance, lifetimeProfit, boostState, createdAt } = req.body;
       const db = readDb();
       
-      let userId = id ? (LEGACY_USER_ID_MAP[id] || id) : '';
-      if (!userId) {
-        userId = getNextSequentialUserId(db.users);
-      }
-
       const cleanEmail = email ? email.trim().toLowerCase() : '';
       const cleanPhrase = phrase ? phrase.trim().toLowerCase() : '';
 
-      // Check if email already belongs to a different user ID
+      // Check if email already belongs to an existing user
       if (cleanEmail) {
-        const emailConflict = db.users.find((u: any) => u.email && u.email.toLowerCase() === cleanEmail && u.id !== userId);
+        const emailConflict = db.users.find((u: any) => u.email && u.email.toLowerCase() === cleanEmail);
         if (emailConflict) {
           return res.status(400).json({ error: 'An account with this email address already exists. Please sign in.' });
         }
       }
 
-      const existing = db.users.find((u: any) => u.id === userId || (cleanEmail && u.email && u.email.toLowerCase() === cleanEmail) || (cleanPhrase && u.phrase === cleanPhrase));
-      if (existing) {
-        if (cleanEmail && !existing.email) existing.email = cleanEmail;
-        if (balance !== undefined && Number(balance) > (Number(existing.balance) || 0)) {
-          existing.balance = Number(balance);
+      // If restoring a legacy user by ID
+      let userId = id ? (LEGACY_USER_ID_MAP[id] || id) : '';
+      if (userId) {
+        const existing = db.users.find((u: any) => u.id === userId || (cleanPhrase && u.phrase === cleanPhrase));
+        if (existing) {
+          if (cleanEmail && !existing.email) existing.email = cleanEmail;
+          if (balance !== undefined && Number(balance) > (Number(existing.balance) || 0)) {
+            existing.balance = Number(balance);
+          }
+          if (lifetimeProfit !== undefined && Number(lifetimeProfit) > (Number(existing.lifetimeProfit) || 0)) {
+            existing.lifetimeProfit = Number(lifetimeProfit);
+          }
+          writeDb(db);
+          return res.json({ success: true, user: existing, restored: true });
         }
-        if (lifetimeProfit !== undefined && Number(lifetimeProfit) > (Number(existing.lifetimeProfit) || 0)) {
-          existing.lifetimeProfit = Number(lifetimeProfit);
-        }
-        writeDb(db);
-        return res.json({ success: true, user: existing, restored: true });
       }
+
+      // New registration: strictly allocate next serial ID (1, 2, 3...)
+      userId = getNextSequentialUserId(db.users);
 
       const initialDuration = calculateDynamicDuration(balance !== undefined ? Number(balance) : 0, db.users, db.config);
       const newUser = {
@@ -422,6 +424,43 @@ async function startServer() {
       db.users.push(newUser);
       writeDb(db);
       res.json({ success: true, user: newUser });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 5b. User authentication login endpoint (strictly Email & Password)
+  app.post('/api/users/login', (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || typeof email !== 'string' || !email.trim()) {
+        return res.status(400).json({ error: 'Email address is required.' });
+      }
+      if (!password || typeof password !== 'string') {
+        return res.status(400).json({ error: 'Password is required.' });
+      }
+
+      const db = readDb();
+      const cleanEmail = email.trim().toLowerCase();
+      const user = db.users.find((u: any) => u.email && u.email.toLowerCase() === cleanEmail);
+
+      if (!user) {
+        return res.status(404).json({ error: 'No account found with this email address. Please create an account.' });
+      }
+
+      if (user.password && user.password !== password.trim()) {
+        return res.status(401).json({ error: 'Incorrect password for this account. Please try again.' });
+      }
+
+      if (user.isBlocked) {
+        return res.status(403).json({ error: 'This account has been suspended by system administrator.' });
+      }
+
+      if (user.isTempLocked) {
+        return res.status(403).json({ error: 'Account is temporarily locked. Contact support.' });
+      }
+
+      res.json({ success: true, user });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

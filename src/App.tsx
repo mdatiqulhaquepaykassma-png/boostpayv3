@@ -18,6 +18,7 @@ import { FloatingToastContainer } from './components/FloatingToast';
 import { P2PTransferModal } from './components/P2PTransferModal';
 import { UpdateNotification } from './components/UpdateNotification';
 import { usePWAInstall } from './hooks/usePWAInstall';
+import { InstallGuideModal } from './components/InstallGuideModal';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => BoostPayStore.getCurrentUser());
@@ -39,8 +40,20 @@ export default function App() {
   // System config state
   const [config, setConfig] = useState<SystemConfig>(BoostPayStore.getConfig());
 
-  // PWA install hook
-  const { isInstalled, isInstallLoading, justInstalled, install, openApp } = usePWAInstall();
+  // PWA install hook & state
+  const { isInstallable, isInstalled, isInstallLoading, justInstalled, install, openApp } = usePWAInstall();
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+
+  const handleBottomInstallClick = async () => {
+    if (isInstallable) {
+      const ok = await install();
+      if (!ok) {
+        setIsInstallModalOpen(true);
+      }
+    } else {
+      setIsInstallModalOpen(true);
+    }
+  };
 
   // Listen to /admin URL route changes
   useEffect(() => {
@@ -279,7 +292,7 @@ export default function App() {
                   </button>
                 ) : (
                   <button
-                    onClick={install}
+                    onClick={handleBottomInstallClick}
                     disabled={isInstallLoading}
                     className="flex flex-col items-center justify-center gap-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 active:scale-95 transition cursor-pointer min-h-[44px]"
                     title="Install BoostPay"
@@ -309,6 +322,14 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Guided In-App PWA Installation Modal */}
+      <InstallGuideModal
+        isOpen={isInstallModalOpen}
+        onClose={() => setIsInstallModalOpen(false)}
+        onConfirmInstall={install}
+        isInstallable={isInstallable}
+      />
     </div>
   );
 }

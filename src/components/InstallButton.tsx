@@ -1,5 +1,5 @@
 import { FC, useState } from 'react';
-import { Download, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Download, CheckCircle2 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { InstallGuideModal } from './InstallGuideModal';
 
@@ -9,8 +9,25 @@ interface Props {
 }
 
 export const InstallButton: FC<Props> = ({ variant = 'compact', className = '' }) => {
-  const { isInstallable, isInstalled, isInstallLoading, justInstalled, install, openApp } = usePWAInstall();
+  const { isInstallable, isInstalled, isInstallLoading, justInstalled, install } = usePWAInstall();
   const [showModal, setShowModal] = useState(false);
+
+  // If already running as an installed PWA, suppress button
+  if (isInstalled && !justInstalled) {
+    return null;
+  }
+
+  if (justInstalled) {
+    return (
+      <div
+        className={`inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/50 bg-emerald-500/20 px-3 py-1.5 text-xs font-bold text-emerald-300 animate-in fade-in duration-200 ${className}`}
+        title="BoostPay installed successfully"
+      >
+        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+        <span>Installed</span>
+      </div>
+    );
+  }
 
   const handleInstallClick = async () => {
     if (isInstallable) {
@@ -23,33 +40,6 @@ export const InstallButton: FC<Props> = ({ variant = 'compact', className = '' }
     }
   };
 
-  if (isInstalled && !justInstalled) {
-    return (
-      <button
-        onClick={openApp}
-        aria-label="Open BoostPay App"
-        className={`inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-950/40 px-3 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-900/50 transition cursor-pointer ${className}`}
-        title="Open BoostPay app"
-      >
-        <ExternalLink className="w-3.5 h-3.5" />
-        <span>Open</span>
-      </button>
-    );
-  }
-
-  if (justInstalled) {
-    return (
-      <button
-        onClick={openApp}
-        className={`inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/50 bg-emerald-500/20 px-3 py-1.5 text-xs font-bold text-emerald-300 animate-in fade-in duration-200 cursor-pointer ${className}`}
-        title="Open BoostPay app"
-      >
-        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-        <span>Open</span>
-      </button>
-    );
-  }
-
   return (
     <>
       <button
@@ -57,7 +47,7 @@ export const InstallButton: FC<Props> = ({ variant = 'compact', className = '' }
         onClick={handleInstallClick}
         disabled={isInstallLoading}
         aria-label="Install BoostPay"
-        title="Install BoostPay to your device"
+        title="Install BoostPay app to your device"
         className={`relative inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-bold text-zinc-950 hover:bg-amber-400 active:scale-95 transition cursor-pointer shadow-md shadow-amber-500/20 ${className}`}
       >
         {isInstallLoading ? (
@@ -65,7 +55,7 @@ export const InstallButton: FC<Props> = ({ variant = 'compact', className = '' }
         ) : (
           <Download className="w-3.5 h-3.5 stroke-[2.5]" />
         )}
-        <span>{variant === 'full' ? 'Install BoostPay App' : 'Install'}</span>
+        <span>{variant === 'full' ? 'Install BoostPay App' : 'Install App'}</span>
       </button>
 
       <InstallGuideModal

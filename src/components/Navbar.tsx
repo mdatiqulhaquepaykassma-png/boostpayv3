@@ -2,6 +2,7 @@ import { FC, useState } from 'react';
 import { Copy, Check, LogOut, Sparkles, ShieldCheck } from 'lucide-react';
 import { User } from '../types';
 import { copyToClipboard } from '../services/store';
+import { InstallButton } from './InstallButton';
 
 interface Props {
   user: User | null;
@@ -41,6 +42,9 @@ export const Navbar: FC<Props> = ({ user, isAdmin = false, onLogout }) => {
 
         {/* Right side controls */}
         <div className="flex items-center gap-2">
+          {/* In-app Install Button */}
+          <InstallButton variant="compact" />
+
           {/* User ID copy button */}
           {user && (
             <button

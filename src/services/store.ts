@@ -70,7 +70,7 @@ export function getNextSequentialUserId(existingUsers?: User[]): string {
   if (!users || !Array.isArray(users) || users.length === 0) return '1';
   const numericIds = users
     .map(u => parseInt(u.id, 10))
-    .filter(num => !isNaN(num) && num > 0);
+    .filter(num => !isNaN(num) && num > 0 && num < 100000);
   if (numericIds.length === 0) return '1';
   return (Math.max(...numericIds) + 1).toString();
 }
@@ -842,26 +842,62 @@ export class BoostPayStore {
 
   /**
    * Create new user with email, sequential numeric ID & password
+  /**
+   * Register a new user with Email and Password
+   * Server assigns next sequential numeric ID starting from 1 (1, 2, 3...)
    */
-  static registerUser(email: string, password?: string): User {
-    const users = this.getUsers();
+  static async registerUser(email: string, password?: string): Promise<User> {
     const cleanEmail = email.trim().toLowerCase();
+    const cleanPass = password?.trim() || '';
 
-    const existing = users.find(u => u.email && u.email.toLowerCase() === cleanEmail);
-    if (existing) {
+    // Fast local validation
+    const localUsers = this.getUsers();
+    const existingLocal = localUsers.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+    if (existingLocal) {
       throw new Error('An account with this email address already exists. Please sign in.');
     }
 
-    const numericId = getNextSequentialUserId(users);
+    try {
+      const res = await fetch('/api/users/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password: cleanPass
+        })
+      });
 
-    const initialDuration = this.calculateDynamicDuration(0, users);
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Registration failed.');
+      }
+
+      if (data.user) {
+        const newUser: User = data.user;
+        const currentUsers = this.getUsers().filter(u => u.id !== newUser.id);
+        currentUsers.push(newUser);
+        this.saveUsers(currentUsers);
+        this.setCurrentUser(newUser);
+        return newUser;
+      }
+    } catch (err: any) {
+      if (err.message && (err.message.includes('already exists') || err.message.includes('Registration failed'))) {
+        throw err;
+      }
+      console.warn('Backend offline fallback for registration:', err);
+    }
+
+    // Offline local fallback
+    const numericId = getNextSequentialUserId(localUsers);
+    const initialDuration = this.calculateDynamicDuration(0, localUsers);
 
     const newUser: User = {
       id: numericId,
       email: cleanEmail,
       balance: 0,
       lifetimeProfit: 0,
-      password: password?.trim() || '',
+      password: cleanPass,
       createdAt: Date.now(),
       boostState: {
         isActive: false,
@@ -875,51 +911,65 @@ export class BoostPayStore {
       }
     };
 
-    users.push(newUser);
-    this.saveUsers(users);
+    localUsers.push(newUser);
+    this.saveUsers(localUsers);
     this.setCurrentUser(newUser);
-
-    // Also register on server
-    fetch('/api/users/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: newUser.id,
-        email: newUser.email,
-        password: newUser.password
-      })
-    }).catch(() => {});
-
     return newUser;
   }
 
   /**
-   * Login with email, numeric ID, or legacy phrase, and password verification
+   * Login using only Email and Password
    */
-  static loginUser(identifier: string, password?: string): { success: boolean; user?: User; error?: string } {
-    const users = this.getUsers();
-    const clean = identifier.trim().toLowerCase();
+  static async loginUser(email: string, password?: string): Promise<{ success: boolean; user?: User; error?: string }> {
+    const cleanEmail = email.trim().toLowerCase();
     const cleanPass = password?.trim() || '';
-    const resolvedId = LEGACY_USER_MAP[clean] || clean;
 
-    // 1. Check if matching email
-    let user = users.find(u => u.email && u.email.toLowerCase() === clean);
-    // 2. Or check if matching numeric ID
-    if (!user) {
-      user = users.find(u => u.id === resolvedId || u.id === clean);
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter your email address.' };
     }
-    // 3. Or check if matching legacy phrase
-    if (!user) {
-      user = users.find(u => u.phrase === clean);
+    if (!cleanPass) {
+      return { success: false, error: 'Please enter your password.' };
     }
 
-    if (!user) {
-      return { success: false, error: 'No account found with this email or ID.' };
+    // 1. Authoritative Server-Side Login
+    try {
+      const res = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password: cleanPass })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.user) {
+        const user: User = data.user;
+        // Cache user locally
+        const localUsers = this.getUsers().filter(u => u.id !== user.id);
+        localUsers.push(user);
+        this.saveUsers(localUsers);
+        this.setCurrentUser(user);
+        this.syncUserFromServer(user.id);
+        return { success: true, user };
+      }
+
+      if (!res.ok && data.error) {
+        return { success: false, error: data.error };
+      }
+    } catch {
+      // Offline fallback
     }
 
-    // Verify password if user set a password
+    // 2. Offline Fallback from local store
+    const users = this.getUsers();
+    const user = users.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+
+    if (!user) {
+      return { success: false, error: 'No account found with this email address. Please create an account.' };
+    }
+
+    // Verify password
     if (user.password && user.password !== cleanPass) {
-      return { success: false, error: 'Incorrect password for this account.' };
+      return { success: false, error: 'Incorrect password for this account. Please try again.' };
     }
 
     if (user.isBlocked) {
