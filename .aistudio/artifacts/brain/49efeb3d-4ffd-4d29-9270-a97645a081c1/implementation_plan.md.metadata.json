@@ -1,0 +1,6 @@
+{
+  "summary": "Sequential User ID engine starting from 1 (1, 2, 3...) for user registration, server-side auto-increment allocation, and seamless migration of existing records.",
+  "updatedAt": "2026-10-17T15:48:47.140607384Z",
+  "requestFeedback": true,
+  "userFacing": true
+}
