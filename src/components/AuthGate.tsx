@@ -66,8 +66,12 @@ export const AuthGate: FC<Props> = ({ onLoginUser }) => {
       return;
     }
 
-    const newUser = BoostPayStore.registerUser(cleanEmail, signupPassword);
-    onLoginUser(newUser);
+    try {
+      const newUser = BoostPayStore.registerUser(cleanEmail, signupPassword);
+      onLoginUser(newUser);
+    } catch (err: any) {
+      setSignupError(err.message || 'Registration failed.');
+    }
   };
 
   return (

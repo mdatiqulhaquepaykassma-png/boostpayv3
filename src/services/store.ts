@@ -845,8 +845,14 @@ export class BoostPayStore {
    */
   static registerUser(email: string, password?: string): User {
     const users = this.getUsers();
-    const numericId = getNextSequentialUserId(users);
     const cleanEmail = email.trim().toLowerCase();
+
+    const existing = users.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+    if (existing) {
+      throw new Error('An account with this email address already exists. Please sign in.');
+    }
+
+    const numericId = getNextSequentialUserId(users);
 
     const initialDuration = this.calculateDynamicDuration(0, users);
 

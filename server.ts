@@ -378,6 +378,14 @@ async function startServer() {
       const cleanEmail = email ? email.trim().toLowerCase() : '';
       const cleanPhrase = phrase ? phrase.trim().toLowerCase() : '';
 
+      // Check if email already belongs to a different user ID
+      if (cleanEmail) {
+        const emailConflict = db.users.find((u: any) => u.email && u.email.toLowerCase() === cleanEmail && u.id !== userId);
+        if (emailConflict) {
+          return res.status(400).json({ error: 'An account with this email address already exists. Please sign in.' });
+        }
+      }
+
       const existing = db.users.find((u: any) => u.id === userId || (cleanEmail && u.email && u.email.toLowerCase() === cleanEmail) || (cleanPhrase && u.phrase === cleanPhrase));
       if (existing) {
         if (cleanEmail && !existing.email) existing.email = cleanEmail;

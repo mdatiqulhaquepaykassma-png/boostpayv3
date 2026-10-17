@@ -1,56 +1,31 @@
-# Transition from Recovery Phrase to Email & Password Authentication
+# Duplicate Account Prevention & Admin Deletion
 
-Replace the 12-word recovery phrase (mnemonic) authentication flow with a clean, professional Email & Password sign-up and sign-in experience while maintaining sequential numeric User IDs (`1`, `2`, `3`, ...) and full backward compatibility.
+Implement duplicate email prevention during new user registration and provide administrators with explicit controls to delete user accounts directly from the Admin Portal.
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
 > Based on your confirmation in Phase 1:
-> - **Authentication Method**: Users sign up and sign in using **Email address** and **Security Password**.
-> - **User ID Allocation**: New accounts continue to receive auto-assigned sequential numeric IDs (`1`, `2`, `3`, ...).
-> - **Account Migration**: Existing accounts (such as User #1 and User #2) will be updated to store an email field (e.g. `user1@boostpay.app`, `user2@boostpay.app`), allowing seamless sign-in with email and password without data loss.
+> - **Duplicate Prevention**: Prevent new sign-ups if an account with the same email address already exists.
+> - **Admin Deletion**: Enable administrators to delete duplicate or unwanted accounts directly from the Admin Portal (`DATABASE` or user management tab).
 
-- **Confirmed Decision 1**: Email and Password authentication replacing recovery phrases.
-- **Confirmed Decision 2**: Sequential numeric User IDs (`1`, `2`, ...) automatically assigned on email signup.
-- **Confirmed Decision 3**: Non-destructive data migration for existing users.
+- **Confirmed Decision 1**: Block registration if email already exists.
+- **Confirmed Decision 2**: Admin Portal deletion action for cleaning up accounts.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **What It Does**: Removes 12-word phrase generation and copy-phrase requirements from the Auth Gate (`AuthGate.tsx`). Replaces them with an Email input field and Password verification.
-- **Target Audience**: Everyday fintech users who prefer standard email/password login.
-- **Key Value**: Streamlined onboarding and familiar banking-grade authentication.
+- **What It Does**: Validates during registration that the submitted email is not already registered. If it exists, returns a clear error message prompting the user to sign in instead. Adds a delete button in the Admin Portal user list.
+- **Key Value**: Clean user database with zero duplicate emails and full administrative cleanup control.
 
 ---
 
-## 2. User Experience & Visual Design
+## 2. Technical Architecture & Implementation Steps
 
-- **Sign In Tab**:
-  - Input field for **Email Address** (e.g., `user@gmail.com`).
-  - Input field for **Security Password** with show/hide toggle.
-  - Submit button: "Sign In to Wallet".
-- **Create Account Tab**:
-  - Input field for **Email Address**.
-  - Input field for **Security Password**.
-  - Input field for **Confirm Password**.
-  - Submit button: "Complete Registration".
-- **Admin Portal Inspection**:
-  - The Admin User Directory will display user email addresses alongside their sequential User ID, balance, and lifetime profit.
-
----
-
-## 3. Technical Architecture & Data Strategy
-
-### Data Model Changes (`src/types.ts` & Backend `User` Entity)
-- Replace or supplement `phrase: string` with `email: string`.
-- Retain `id: string` (sequential numeric ID: `1`, `2`, `3`, ...).
-- Retain `password?: string`.
-
-### Component & Store Changes
-1. **`src/types.ts`**: Add `email: string` to `User`.
-2. **`src/components/AuthGate.tsx`**: Replace mnemonic generation and phrase copy box with email input.
-3. **`src/services/store.ts` & `server.ts`**:
-   - Update `registerUser(email, password)` to store email.
-   - Update `loginUser(email, password)` to authenticate against `user.email === cleanEmail`.
-   - Migrate existing database records in `data/boostpay_db.json` to have default emails (e.g. `admin@boostpay.app` for user #1, `user2@boostpay.app` for user #2).
+1. **Backend & Store Registration Validation (`server.ts` & `store.ts`)**:
+   - In `/api/users/register` and `registerUser`, check if `db.users` already contains an account with `user.email.toLowerCase() === cleanEmail`.
+   - If found and not a restoration of the same user ID, return a 400 error: `"An account with this email address already exists. Please sign in."`
+2. **Admin Portal User Deletion (`AdminPortal.tsx` & `server.ts`)**:
+   - Ensure `handleDeleteUser` correctly removes the user from `db.users` and cleans up associated transactions/notifications or cascades safely.
+   - Display a Delete button for each user in the Admin Portal User Table.

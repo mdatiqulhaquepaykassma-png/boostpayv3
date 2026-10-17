@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan to replace 12-word recovery phrase login/signup with Email and Password authentication while preserving sequential numeric IDs (1, 2, 3...) and existing account migration.",
-  "updatedAt": "2026-10-17T16:55:55.004335199Z",
+  "summary": "Implementation plan to add duplicate email prevention during registration and enable Admin Portal manual account deletion with transaction cleanup.",
+  "updatedAt": "2026-10-17T17:23:50.652911993Z",
   "requestFeedback": true,
   "userFacing": true
 }
