@@ -1,6 +1,6 @@
 import { FC, useState } from 'react';
-import { Shield, ArrowRight, Copy, Check, Eye, EyeOff, Lock, KeyRound, Sparkles } from 'lucide-react';
-import { BoostPayStore, generateMnemonic, copyToClipboard } from '../services/store';
+import { Shield, ArrowRight, Eye, EyeOff, Sparkles, Mail, Lock } from 'lucide-react';
+import { BoostPayStore, copyToClipboard } from '../services/store';
 import { User } from '../types';
 
 interface Props {
@@ -11,50 +11,30 @@ export const AuthGate: FC<Props> = ({ onLoginUser }) => {
   const [tab, setTab] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
 
   // Login form state
-  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
 
   // Signup form state
-  const [newMnemonic, setNewMnemonic] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showSignupPassword, setShowSignupPassword] = useState(false);
-  const [copiedPhrase, setCopiedPhrase] = useState(false);
-  const [isPhraseSaved, setIsPhraseSaved] = useState(false);
   const [signupError, setSignupError] = useState('');
-
-  const startSignup = () => {
-    const phrase = generateMnemonic();
-    setNewMnemonic(phrase);
-    setSignupPassword('');
-    setConfirmPassword('');
-    setIsPhraseSaved(false);
-    setSignupError('');
-    setTab('SIGNUP');
-  };
-
-  const handleCopyPhrase = async () => {
-    const ok = await copyToClipboard(newMnemonic);
-    if (ok) {
-      setCopiedPhrase(true);
-      setTimeout(() => setCopiedPhrase(false), 2000);
-    }
-  };
 
   const handleUserLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
 
-    if (!loginIdentifier.trim()) {
-      setLoginError('Please enter your 12-word recovery phrase or Numeric ID');
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      setLoginError('Please enter your email address and password.');
       return;
     }
 
-    const res = BoostPayStore.loginUser(loginIdentifier.trim(), loginPassword);
+    const res = BoostPayStore.loginUser(loginEmail.trim(), loginPassword);
     if (!res.success || !res.user) {
-      setLoginError(res.error || 'Invalid credentials.');
+      setLoginError(res.error || 'Invalid email or password.');
       return;
     }
 
@@ -65,8 +45,9 @@ export const AuthGate: FC<Props> = ({ onLoginUser }) => {
     e.preventDefault();
     setSignupError('');
 
-    if (!newMnemonic) {
-      setSignupError('Secret phrase generation failed. Please refresh.');
+    const cleanEmail = signupEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setSignupError('Please enter a valid email address.');
       return;
     }
 
@@ -85,12 +66,7 @@ export const AuthGate: FC<Props> = ({ onLoginUser }) => {
       return;
     }
 
-    if (!isPhraseSaved) {
-      setSignupError('Please check the confirmation box below.');
-      return;
-    }
-
-    const newUser = BoostPayStore.registerUser(newMnemonic, signupPassword);
+    const newUser = BoostPayStore.registerUser(cleanEmail, signupPassword);
     onLoginUser(newUser);
   };
 
@@ -120,7 +96,7 @@ export const AuthGate: FC<Props> = ({ onLoginUser }) => {
             Sign In
           </button>
           <button
-            onClick={startSignup}
+            onClick={() => { setTab('SIGNUP'); setSignupError(''); }}
             className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition ${
               tab === 'SIGNUP'
                 ? 'bg-amber-500 text-zinc-950 shadow-md font-bold'
@@ -135,21 +111,21 @@ export const AuthGate: FC<Props> = ({ onLoginUser }) => {
         {tab === 'LOGIN' && (
           <form onSubmit={handleUserLogin} className="space-y-3.5">
             <div>
-              <label className="block text-[11px] font-medium text-zinc-300 mb-1.5">
-                Recovery Phrase or Numeric ID
+              <label className="block text-[11px] font-medium text-zinc-300 mb-1.5 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-amber-400" /> Email Address or Numeric ID
               </label>
-              <textarea
-                rows={2}
-                placeholder="Enter 12-word recovery phrase or Numeric ID (e.g. 1)"
-                value={loginIdentifier}
-                onChange={(e) => setLoginIdentifier(e.target.value)}
-                className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-100 placeholder-zinc-600 focus:border-amber-500 focus:outline-none resize-none font-mono"
+              <input
+                type="text"
+                placeholder="e.g. user@gmail.com or 1"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:border-amber-500 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-medium text-zinc-300 mb-1.5">
-                Security Password
+              <label className="block text-[11px] font-medium text-zinc-300 mb-1.5 flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-amber-400" /> Security Password
               </label>
               <div className="relative">
                 <input
@@ -181,56 +157,28 @@ export const AuthGate: FC<Props> = ({ onLoginUser }) => {
             >
               Sign In to Wallet <ArrowRight className="w-4 h-4" />
             </button>
-
-            <div className="text-center pt-2">
-              <button
-                type="button"
-                onClick={startSignup}
-                className="text-xs text-zinc-400 hover:text-amber-400 transition"
-              >
-                New to BoostPay? Create a wallet
-              </button>
-            </div>
           </form>
         )}
 
         {/* Create Account Form */}
         {tab === 'SIGNUP' && (
           <form onSubmit={completeSignup} className="space-y-3.5">
-            <div className="rounded-2xl border border-amber-500/20 bg-amber-950/20 p-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5" /> 12-Word Recovery Phrase
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCopyPhrase}
-                  className="flex items-center gap-1 text-[11px] text-amber-400 hover:text-amber-300 font-medium"
-                >
-                  {copiedPhrase ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedPhrase ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-              <p className="text-[11px] text-zinc-400 mb-2.5 leading-snug">
-                Write down these 12 secret words. You need them along with your password to access your funds.
-              </p>
-
-              <div className="grid grid-cols-3 gap-1.5 font-mono text-[11px]">
-                {newMnemonic.split(' ').map((word, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950/80 px-2 py-1 text-zinc-200"
-                  >
-                    <span className="text-zinc-600 text-[10px]">{i + 1}.</span>
-                    <span className="font-semibold text-amber-300 truncate">{word}</span>
-                  </div>
-                ))}
-              </div>
+            <div>
+              <label className="block text-[11px] font-medium text-zinc-300 mb-1.5 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-amber-400" /> Email Address
+              </label>
+              <input
+                type="email"
+                placeholder="e.g. user@gmail.com"
+                value={signupEmail}
+                onChange={(e) => setSignupEmail(e.target.value)}
+                className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:border-amber-500 focus:outline-none"
+              />
             </div>
 
             <div>
-              <label className="block text-[11px] font-medium text-zinc-300 mb-1">
-                Set Security Password
+              <label className="block text-[11px] font-medium text-zinc-300 mb-1.5 flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-amber-400" /> Set Security Password
               </label>
               <div className="relative">
                 <input
@@ -251,7 +199,7 @@ export const AuthGate: FC<Props> = ({ onLoginUser }) => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-medium text-zinc-300 mb-1">
+              <label className="block text-[11px] font-medium text-zinc-300 mb-1.5">
                 Confirm Password
               </label>
               <input
@@ -262,16 +210,6 @@ export const AuthGate: FC<Props> = ({ onLoginUser }) => {
                 className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:border-amber-500 focus:outline-none"
               />
             </div>
-
-            <label className="flex items-start gap-2 cursor-pointer select-none text-[11px] text-zinc-300 pt-1">
-              <input
-                type="checkbox"
-                checked={isPhraseSaved}
-                onChange={(e) => setIsPhraseSaved(e.target.checked)}
-                className="h-4 w-4 rounded border-zinc-700 text-amber-500 focus:ring-amber-500 mt-0.5"
-              />
-              <span>I have saved my 12-word recovery phrase safely</span>
-            </label>
 
             {signupError && (
               <p className="rounded-xl bg-red-950/40 border border-red-500/30 p-2.5 text-xs text-red-400">

@@ -2,9 +2,9 @@
   "users": [
     {
       "id": "1",
+      "email": "user1@boostpay.app",
       "balance": 235,
       "lifetimeProfit": 14.5,
-      "phrase": "alpha beacon crypto dynamic ember falcon galaxy harbor impact jupiter kinetic legacy",
       "password": "user123",
       "createdAt": 1792155000876,
       "boostState": {
@@ -20,11 +20,29 @@
     },
     {
       "id": "2",
+      "email": "user2@boostpay.app",
       "balance": 15,
       "lifetimeProfit": 0,
-      "phrase": "matrix nebula orbit plasma quantum ripple stellar titan uranus vertex zenith vector",
       "password": "pass",
       "createdAt": 1792242417801,
+      "boostState": {
+        "isActive": false,
+        "isPaused": false,
+        "startedAt": 0,
+        "pausedAt": 0,
+        "elapsedMs": 0,
+        "targetDurationMs": 60000,
+        "startingBalance": 0,
+        "accumulatedYield": 0
+      }
+    },
+    {
+      "id": "3",
+      "email": "user3@boostpay.app",
+      "balance": 0,
+      "lifetimeProfit": 0,
+      "password": "123456",
+      "createdAt": 1792256151948,
       "boostState": {
         "isActive": false,
         "isPaused": false,
@@ -68,7 +86,7 @@
   "conversations": [],
   "messages": [],
   "config": {
-    "hourlyRatePercent": 1,
+    "hourlyRatePercent": 1.5,
     "minBoostMs": 60000,
     "maxBoostMs": 86400000,
     "dokploy": {

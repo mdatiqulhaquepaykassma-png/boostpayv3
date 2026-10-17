@@ -841,19 +841,20 @@ export class BoostPayStore {
   }
 
   /**
-   * Create new user with 12-word mnemonic, numeric ID & password
+   * Create new user with email, sequential numeric ID & password
    */
-  static registerUser(mnemonic: string, password?: string): User {
+  static registerUser(email: string, password?: string): User {
     const users = this.getUsers();
     const numericId = getNextSequentialUserId(users);
+    const cleanEmail = email.trim().toLowerCase();
 
     const initialDuration = this.calculateDynamicDuration(0, users);
 
     const newUser: User = {
       id: numericId,
+      email: cleanEmail,
       balance: 0,
       lifetimeProfit: 0,
-      phrase: mnemonic.trim().toLowerCase(),
       password: password?.trim() || '',
       createdAt: Date.now(),
       boostState: {
@@ -878,7 +879,7 @@ export class BoostPayStore {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: newUser.id,
-        phrase: newUser.phrase,
+        email: newUser.email,
         password: newUser.password
       })
     }).catch(() => {});
@@ -887,7 +888,7 @@ export class BoostPayStore {
   }
 
   /**
-   * Login with 12-word mnemonic or numeric ID, and password verification
+   * Login with email, numeric ID, or legacy phrase, and password verification
    */
   static loginUser(identifier: string, password?: string): { success: boolean; user?: User; error?: string } {
     const users = this.getUsers();
@@ -895,15 +896,19 @@ export class BoostPayStore {
     const cleanPass = password?.trim() || '';
     const resolvedId = LEGACY_USER_MAP[clean] || clean;
 
-    // Check if matching phrase
-    let user = users.find(u => u.phrase === clean);
-    // Or check if matching numeric ID directly (or mapped legacy ID)
+    // 1. Check if matching email
+    let user = users.find(u => u.email && u.email.toLowerCase() === clean);
+    // 2. Or check if matching numeric ID
     if (!user) {
       user = users.find(u => u.id === resolvedId || u.id === clean);
     }
+    // 3. Or check if matching legacy phrase
+    if (!user) {
+      user = users.find(u => u.phrase === clean);
+    }
 
     if (!user) {
-      return { success: false, error: 'No account found with this phrase or ID.' };
+      return { success: false, error: 'No account found with this email or ID.' };
     }
 
     // Verify password if user set a password
@@ -920,7 +925,6 @@ export class BoostPayStore {
     }
 
     this.setCurrentUser(user);
-    // Trigger background sync to ensure latest server state
     this.syncUserFromServer(user.id);
     return { success: true, user };
   }

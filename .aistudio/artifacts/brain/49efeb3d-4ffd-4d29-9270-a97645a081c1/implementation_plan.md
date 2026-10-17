@@ -1,107 +1,56 @@
-# Sequential User ID System (Starting from 1)
+# Transition from Recovery Phrase to Email & Password Authentication
 
-Transform BoostPay user identification from random 6-digit numbers to a clean, sequential/serial numbering system starting from ID `1` (`1`, `2`, `3`, ...), with automatic server-authoritative sequential ID assignment and non-destructive migration of existing accounts and transaction history.
+Replace the 12-word recovery phrase (mnemonic) authentication flow with a clean, professional Email & Password sign-up and sign-in experience while maintaining sequential numeric User IDs (`1`, `2`, `3`, ...) and full backward compatibility.
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> Based on your direct confirmation in Phase 1:
-> - **Sequential Numbering**: User IDs will start at `1` and increment serially (`1`, `2`, `3`, `4`, ...).
-> - **Display Preservation**: No UI layout changes are needed; existing display placements (Navbar, Leaderboard, P2P Transfers, Messenger, and Admin Directory) will cleanly present the sequential IDs (e.g. `#1`, `#2`).
-> - **Backward Compatibility & Migration**: Existing database and local storage users (`849201` -> `1`, `223344` -> `2`) will be migrated synchronously along with all corresponding transactions, notifications, conversations, and active sessions so no user loses access or balances.
+> Based on your confirmation in Phase 1:
+> - **Authentication Method**: Users sign up and sign in using **Email address** and **Security Password**.
+> - **User ID Allocation**: New accounts continue to receive auto-assigned sequential numeric IDs (`1`, `2`, `3`, ...).
+> - **Account Migration**: Existing accounts (such as User #1 and User #2) will be updated to store an email field (e.g. `user1@boostpay.app`, `user2@boostpay.app`), allowing seamless sign-in with email and password without data loss.
 
-- **Confirmed Decision 1**: User ID serial sequence starts from `1` (`1`, `2`, `3`...).
-- **Confirmed Decision 2**: Retain existing UI placements and copy triggers without adding extra visual clutter.
-- **Migration Strategy**: Auto-migrate existing users in `data/boostpay_db.json` and client `localStorage` with relational foreign keys preserved.
+- **Confirmed Decision 1**: Email and Password authentication replacing recovery phrases.
+- **Confirmed Decision 2**: Sequential numeric User IDs (`1`, `2`, ...) automatically assigned on email signup.
+- **Confirmed Decision 3**: Non-destructive data migration for existing users.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **What It Does**: Replaces random 6-digit user IDs with an auto-incrementing sequential ID generator starting from `1`. When a new user registers an account, the backend and client store calculate the next available positive integer ID (`max(existing IDs) + 1`).
-- **Target Audience**: BoostPay members and administrators who need simple, intuitive, and memorable account identification.
-- **Key Value**: Easier peer-to-peer transfers (typing `#1` or `#2` instead of memorizing 6 random digits), clean leaderboard ranking, and streamlined customer support queries.
+- **What It Does**: Removes 12-word phrase generation and copy-phrase requirements from the Auth Gate (`AuthGate.tsx`). Replaces them with an Email input field and Password verification.
+- **Target Audience**: Everyday fintech users who prefer standard email/password login.
+- **Key Value**: Streamlined onboarding and familiar banking-grade authentication.
 
 ---
 
 ## 2. User Experience & Visual Design
 
-- **Registration Flow**:
-  - A user creates a wallet on the Auth Gate (`Create Account`).
-  - Upon completing signup, the user is assigned the next sequential integer ID (e.g. `1`, `2`, `3`).
-  - When entering the wallet, the Navbar displays `ID: 1` with one-tap copy functionality.
-- **P2P Transfer Flow**:
-  - In `P2PTransferModal`, users can transfer funds by simply entering recipient ID `1` or `2`.
-  - Input validation accepts integer strings without leading zero errors.
-- **Leaderboard & Messenger**:
-  - Leaderboard cleanly displays users ranked by balance with sequential badge tags: `#1`, `#2`, `#3`.
-  - P2P messaging correctly routes chats and displays peer headers with the sequential ID format.
-- **Admin Portal**:
-  - The Admin User Directory lists users sorted or searchable by their sequential ID (`1`, `2`, etc.).
+- **Sign In Tab**:
+  - Input field for **Email Address** (e.g., `user@gmail.com`).
+  - Input field for **Security Password** with show/hide toggle.
+  - Submit button: "Sign In to Wallet".
+- **Create Account Tab**:
+  - Input field for **Email Address**.
+  - Input field for **Security Password**.
+  - Input field for **Confirm Password**.
+  - Submit button: "Complete Registration".
+- **Admin Portal Inspection**:
+  - The Admin User Directory will display user email addresses alongside their sequential User ID, balance, and lifetime profit.
 
 ---
 
-## 3. Key Product Decisions & Trade-Offs
+## 3. Technical Architecture & Data Strategy
 
-- **Decision 1: Sequential Allocation Logic**
-  - *Chosen Approach*: Compute `nextId` as `Math.max(0, ...existingNumericIds) + 1` converted to string (`"1"`, `"2"`...).
-  - *Why*: Eliminates gaps caused by legacy IDs, prevents race condition overlaps, and guarantees strictly sequential allocation starting at `1`.
-  - *Alternatives Considered*: Fixed length zero-padded strings (e.g. `"000001"`); passed over because standard integer strings (`1`, `2`) match user specification "1 theke start hobe".
+### Data Model Changes (`src/types.ts` & Backend `User` Entity)
+- Replace or supplement `phrase: string` with `email: string`.
+- Retain `id: string` (sequential numeric ID: `1`, `2`, `3`, ...).
+- Retain `password?: string`.
 
-- **Decision 2: Existing User Migration & Integrity**
-  - *Chosen Approach*: Atomically migrate `data/boostpay_db.json` and `store.ts` initialization by mapping existing users in creation order:
-    - User `849201` -> `1`
-    - User `223344` -> `2`
-    - Update all associated transactions, notifications, and conversation references (`userId`, `senderId`, `recipientId`, `participants`).
-    - Migrate active `localStorage` session keys (`boostpay_current_user_id_v4`, `boostpay_user_id`) to `1` so currently logged-in sessions stay logged in seamlessly.
-  - *Why*: Prevents orphan transactions or broken transfer histories.
-
----
-
-## 4. Technical Architecture & Data Strategy
-
-```
-┌────────────────────────────────────────────────────────┐
-│                   User Registration                    │
-│   (Mnemonic Phrase + Password -> Serial ID Generator)  │
-└───────────────────────────┬────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│             Sequential ID Resolver (Server & Store)     │
-│       nextId = Math.max(0, ...numericIds) + 1          │
-│                 Result: "1", "2", "3", ...             │
-└───────────────────────────┬────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│         Full-Stack Database & Storage Sync             │
-│  - users[].id = "1", "2"...                            │
-│  - transactions[].userId / senderId / recipientId      │
-│  - notifications[].userId / metadata                   │
-│  - conversations[].participants                        │
-└───────────────────────────┬────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│            Synchronized Client UI Presentation        │
-│  - Navbar: ID: 1 (Click to Copy)                       │
-│  - Leaderboard: #1, #2 (Live Rank & Peer Chat)         │
-│  - P2P Transfer: Recipient #1, #2                      │
-│  - Admin Directory: User #1, #2                        │
-└────────────────────────────────────────────────────────┘
-```
-
-### Components to Update (Upon Approval)
-1. **`src/services/store.ts`**:
-   - Update `generateNumericId(users)` / `getNextSequentialId(users)` to scan existing users and return `(max + 1).toString()`, defaulting to `"1"`.
-   - Update `registerUser()` to use sequential generation.
-   - Add legacy ID migration routine during `initSync()` to migrate client-cached IDs (`849201` -> `1`, `223344` -> `2`).
-2. **`server.ts`**:
-   - Update `/api/users/register` to auto-assign the next sequential ID if ID is missing or invalid.
-   - Update initial database template `INITIAL_DB` to start with user `"1"`.
-3. **`data/boostpay_db.json`**:
-   - Migrate current data file so existing user `849201` is `1`, `223344` is `2`, with updated transaction and notification foreign keys.
-4. **Verification**:
-   - Compile applet with `compile_applet`.
-   - Test user registration, sequential incrementation, login, and transfer flow.
+### Component & Store Changes
+1. **`src/types.ts`**: Add `email: string` to `User`.
+2. **`src/components/AuthGate.tsx`**: Replace mnemonic generation and phrase copy box with email input.
+3. **`src/services/store.ts` & `server.ts`**:
+   - Update `registerUser(email, password)` to store email.
+   - Update `loginUser(email, password)` to authenticate against `user.email === cleanEmail`.
+   - Migrate existing database records in `data/boostpay_db.json` to have default emails (e.g. `admin@boostpay.app` for user #1, `user2@boostpay.app` for user #2).

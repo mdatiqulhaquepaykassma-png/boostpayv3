@@ -41,6 +41,7 @@ This document maintains the complete, chronological history of all user prompts,
 | **31** | Nixpacks Caddy Conflict Removal | Deployment Fix | Removed `caddy` from `nixpacks.toml` nixPkgs to prevent systemd service file conflict during Dokploy Nixpacks build, ensuring execution runs exclusively via Node.js/Express server. |
 | **32** | Full-Stack Server Boosting & Robust Fixes | Full-Stack Overhaul | Server-side background boosting ticker in `server.ts` processing active boosts in real time while offline or logged out; persistent session recovery on reload; robust clipboard copy helper; PWA install button displaying "Open" without popups when installed; full-stack backend admin operations. |
 | **33** | Sequential User IDs Starting from 1 | Identity & Data Layer | Transformed user IDs from random 6 digits to sequential serial numbers starting from 1 (1, 2, 3...); automated server & client auto-increment allocation; migrated legacy database and local storage records. |
+| **34** | Email & Password Authentication | Authentication | Replaced 12-word recovery phrase login and signup with standard Email and Password authentication while retaining sequential numeric User IDs (1, 2, 3...). |
 
 ---
 
@@ -386,5 +387,17 @@ main balance e boosting balance realtimer show hobe na session yield e show hobe
      - Automatically updated all linked transactions (`userId`, `senderId`, `recipientId`), notifications, conversations, and transaction notes.
      - Added client-side migration in `BoostPayStore` so active user sessions in browser `localStorage` upgrade seamlessly without requiring re-login.
   4. **P2P Transfers & Auth:** Supports instant lookup and transfers to recipient IDs (e.g. `1`, `2`) and login via sequential ID or mnemonic phrase.
+
+---
+
+### Prompt 34: Email & Password Authentication
+* **Original User Input:**
+  > "remove phrese login and impilement email signup login"
+  > Clarification: "Login with Email and Password", "Auto-assign next sequential numeric ID on email signup"
+* **Key Requirements & Implementation:**
+  1. **Email & Password Auth Gate:** Removed 12-word recovery phrase generation and copy-phrase boxes. Implemented clean Email address and Security Password inputs for both Sign In and Create Account.
+  2. **Sequential ID Integration:** New sign-ups with email automatically receive the next sequential numeric ID (`1`, `2`, `3`, ...).
+  3. **Backend & Store Support:** Updated `registerUser` and `loginUser` in `BoostPayStore` and `server.ts` to authenticate using email address, numeric ID, or legacy phrases.
+  4. **Admin Portal Inspection:** Updated the Admin User Directory table to display user Email Addresses alongside their sequential User ID, balances, and profits.
 
 ---

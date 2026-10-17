@@ -367,7 +367,7 @@ async function startServer() {
   // 5. User registration & restoration endpoint
   app.post('/api/users/register', (req, res) => {
     try {
-      const { id, phrase, password, balance, lifetimeProfit, boostState, createdAt } = req.body;
+      const { id, email, phrase, password, balance, lifetimeProfit, boostState, createdAt } = req.body;
       const db = readDb();
       
       let userId = id ? (LEGACY_USER_ID_MAP[id] || id) : '';
@@ -375,9 +375,12 @@ async function startServer() {
         userId = getNextSequentialUserId(db.users);
       }
 
-      const existing = db.users.find((u: any) => u.id === userId || (phrase && u.phrase === phrase.trim().toLowerCase()));
+      const cleanEmail = email ? email.trim().toLowerCase() : '';
+      const cleanPhrase = phrase ? phrase.trim().toLowerCase() : '';
+
+      const existing = db.users.find((u: any) => u.id === userId || (cleanEmail && u.email && u.email.toLowerCase() === cleanEmail) || (cleanPhrase && u.phrase === cleanPhrase));
       if (existing) {
-        // If restoring with a higher balance or verified credentials, update gracefully
+        if (cleanEmail && !existing.email) existing.email = cleanEmail;
         if (balance !== undefined && Number(balance) > (Number(existing.balance) || 0)) {
           existing.balance = Number(balance);
         }
@@ -391,9 +394,9 @@ async function startServer() {
       const initialDuration = calculateDynamicDuration(balance !== undefined ? Number(balance) : 0, db.users, db.config);
       const newUser = {
         id: userId,
+        email: cleanEmail || `user${userId}@boostpay.app`,
         balance: balance !== undefined ? Number(balance) : 0,
         lifetimeProfit: lifetimeProfit !== undefined ? Number(lifetimeProfit) : 0,
-        phrase: (phrase || '').trim().toLowerCase(),
         password: (password || '').trim(),
         createdAt: createdAt || Date.now(),
         boostState: boostState || {
@@ -1072,10 +1075,37 @@ async function startServer() {
     try {
       const incomingConfig = req.body;
       const db = readDb();
-      db.config = {
-        ...db.config,
-        ...incomingConfig
-      };
+      if (!db.config) {
+        db.config = {
+          hourlyRatePercent: 1.0,
+          minBoostMs: 60000,
+          maxBoostMs: 86400000,
+          dokploy: {
+            host: "boostpay-eoqehk",
+            port: 5432,
+            database: "boostpaydb",
+            user: "boostpaydbuser",
+            externalIp: "72.60.42.18",
+            dockerHostname: "boostpay-eoqehk",
+            isConnected: true,
+            lastPingMs: 42
+          }
+        };
+      }
+
+      if (incomingConfig.hourlyRatePercent !== undefined) {
+        const r = parseFloat(incomingConfig.hourlyRatePercent);
+        if (!isNaN(r) && r >= 0) db.config.hourlyRatePercent = r;
+      }
+      if (incomingConfig.minBoostMs !== undefined) {
+        const m = parseInt(incomingConfig.minBoostMs, 10);
+        if (!isNaN(m) && m > 0) db.config.minBoostMs = m;
+      }
+      if (incomingConfig.maxBoostMs !== undefined) {
+        const mx = parseInt(incomingConfig.maxBoostMs, 10);
+        if (!isNaN(mx) && mx > 0) db.config.maxBoostMs = mx;
+      }
+
       writeDb(db);
       res.json({ success: true, config: db.config });
     } catch (err: any) {
