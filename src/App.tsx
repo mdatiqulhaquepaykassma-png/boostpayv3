@@ -19,6 +19,7 @@ import { P2PTransferModal } from './components/P2PTransferModal';
 import { UpdateNotification } from './components/UpdateNotification';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { InstallGuideModal } from './components/InstallGuideModal';
+import { PWAAutoInstallBanner } from './components/PWAAutoInstallBanner';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => BoostPayStore.getCurrentUser());
@@ -322,6 +323,9 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Automatic Mobile PWA Install Prompt Banner on Load */}
+      <PWAAutoInstallBanner />
 
       {/* Guided In-App PWA Installation Modal */}
       <InstallGuideModal
